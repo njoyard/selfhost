@@ -1,0 +1,9 @@
+---
+
+- name: enable znc
+  command: update-rc.d znc defaults
+
+- name: restart znc
+  command: pkill znc
+  ignore_errors: yes
+

@@ -1,0 +1,9 @@
+---
+
+# Requires "name" and "path" variables
+- name: Register backup item
+  lineinfile:
+    dest: /srv/.selfhost/backup.list
+    line: "{{ ansible_fqdn }}-{{ name }} {{ path }}"
+    create: yes
+  when: backup_target is defined

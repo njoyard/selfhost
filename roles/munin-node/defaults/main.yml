@@ -1,0 +1,9 @@
+---
+
+munin_remove_plugins: []
+
+# Each is {name: plugin name + suffix, plugin: name}
+munin_additional_plugins: []
+
+# Each is {name: plugin name, file: local file name}
+munin_custom_plugins: []

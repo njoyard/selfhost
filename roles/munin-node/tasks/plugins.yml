@@ -1,0 +1,117 @@
+---
+
+- name: Search for nginx
+  stat:
+    path: /etc/nginx
+  register: nginx_configuration_dir
+
+- name: Activate nginx plugins
+  file:
+    path: '/etc/munin/plugins/{{ item }}'
+    src: '/usr/share/munin/plugins/{{ item }}'
+    state: link
+  with_items:
+    - nginx_request
+    - nginx_status
+  when: nginx_configuration_dir.stat.exists == True
+  notify: restart munin-node
+
+- name: Set nginx plugins options
+  blockinfile:
+    dest: /etc/munin/plugin-conf.d/munin-node
+    marker: "# {mark} nginx plugin config"
+    content: |
+      [nginx*]
+      env.url http://127.0.0.1/nginx_status
+  when: nginx_configuration_dir.stat.exists == True
+  notify: restart munin-node
+
+- name: Search for postgresql
+  stat:
+    path: /etc/postgresql
+  register: postgresql_configuration_dir
+
+- name: Install postgresql dev packages
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - libdbd-pg-perl
+    - libpq-dev
+    - postgresql-server-dev-all
+  when: postgresql_configuration_dir.stat.exists == True
+
+- name: Activate postgresql plugins (common)
+  file:
+    path: '/etc/munin/plugins/{{ item }}'
+    src: '/usr/share/munin/plugins/{{ item }}'
+    state: link
+  with_items:
+    - postgres_users
+    - postgres_connections_db
+  when: postgresql_configuration_dir.stat.exists == True
+  notify: restart munin-node
+
+- name: Activate postgresql plugins (per database)
+  file:
+    path: '/etc/munin/plugins/{{ item }}ALL'
+    src: '/usr/share/munin/plugins/{{ item }}'
+    state: link
+  with_items:
+    - postgres_querylength_
+    - postgres_transactions_
+    - postgres_size_
+  when: postgresql_configuration_dir.stat.exists == True
+  notify: restart munin-node
+
+- name: Search for cups
+  stat:
+    path: /etc/cups
+  register: cups_configuration_dir
+
+- name: Activate cups plugins
+  file:
+    path: '/etc/munin/plugins/{{ item }}'
+    src: '/usr/share/munin/plugins/{{ item }}'
+    state: link
+  with_items:
+    - cupsys_pages
+  when: cups_configuration_dir.stat.exists == True
+  notify: restart munin-node
+
+- name: Find unwanted plugins
+  find:
+    paths: /etc/munin/plugins
+    patterns: "{{ munin_remove_plugins }}"
+  register: munin_remove_plugins_found
+
+- name: Disable unwanted plugins
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ munin_remove_plugins_found.files }}"
+  notify: restart munin-node
+
+- name: Enable additional plugins
+  file:
+    path: '/etc/munin/plugins/{{ item.name }}'
+    src: '/usr/share/munin/plugins/{{ item.plugin }}'
+    state: link
+  with_items: "{{ munin_additional_plugins }}"
+  notify: restart munin-node
+
+- name: Copy custom plugins
+  copy:
+    src: '{{ item.file }}'
+    dest: '/srv/.selfhost/munin_{{ item.file|basename }}'
+    mode: 0755
+  with_items: "{{ munin_custom_plugins }}"
+  notify: restart munin-node
+
+- name: Enable custom plugins
+  file:
+    path: '/etc/munin/plugins/{{ item.name }}'
+    src: '/srv/.selfhost/munin_{{ item.file|basename }}'
+    state: link
+  with_items: "{{ munin_custom_plugins }}"
+  notify: restart munin-node

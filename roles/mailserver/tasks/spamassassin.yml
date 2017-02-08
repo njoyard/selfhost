@@ -1,0 +1,24 @@
+---
+
+- name: Enable spamd daemon
+  lineinfile:
+    dest: /etc/default/spamassassin
+    regexp: "^#?\\s*ENABLED="
+    line: "ENABLED=1"
+  notify: restart spamassassin
+
+- name: Enable spamassassin cron job
+  lineinfile:
+    dest: /etc/default/spamassassin
+    regexp: "^#?\\s*CRON="
+    line: "CRON=1"
+  notify: restart spamassassin
+
+- name: Enable spamassassin postfix service
+  blockinfile:
+    dest: /etc/postfix/master.cf
+    marker: "# {mark} spamassassin for postfix"
+    content: |
+      spamassassin unix -     n       n       -       -       pipe
+        user=debian-spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
+  notify: restart postfix

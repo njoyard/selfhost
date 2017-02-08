@@ -1,0 +1,39 @@
+---
+
+- name: Download NextCloud archive
+  get_url:
+    url: "{{ nextcloud_archive_url }}"
+    checksum: "sha256:{{ nextcloud_archive_sha256 }}"
+    dest: /srv/.selfhost/nextcloud.zip
+
+- name: Unarchive NextCloud archive
+  unarchive:
+    src: /srv/.selfhost/nextcloud.zip
+    dest: /srv/.selfhost
+    remote_src: True
+
+- name: Set install-time permissions
+  file:
+    owner: www-data
+    group: www-data
+    recurse: yes
+    state: directory
+    dest: /srv/.selfhost/nextcloud
+
+- name: Create webroot symlink
+  file:
+    dest: "/srv/{{ nextcloud_domain }}"
+    src: /srv/.selfhost/nextcloud
+    state: link
+
+- name: Run installer
+  command: php occ maintenance:install --database "pgsql" --database-name "{{ nextcloud_database_name }}" --database-user "{{ nextcloud_database_user }}" --database-pass "{{ nextcloud_database_pass }}" --admin-user "{{ nextcloud_admin_user }}" --admin-pass "{{ nextcloud_admin_pass }}"
+  args:
+    chdir: "/srv/{{ nextcloud_domain }}"
+  become_user: www-data
+  become_method: sudo
+
+- name: Create installation marker file
+  file:
+    dest: /srv/.selfhost/nextcloud_installed
+    state: touch

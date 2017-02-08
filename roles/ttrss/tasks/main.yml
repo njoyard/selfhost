@@ -1,0 +1,98 @@
+---
+
+- name: Clone TT-RSS git repository
+  git:
+    repo: https://tt-rss.org/git/tt-rss.git
+    dest: /srv/.selfhost/tt-rss
+    update: no
+
+- name: Create webroot symlink
+  file:
+    dest: "/srv/{{ ttrss_domain }}"
+    src: /srv/.selfhost/tt-rss
+    state: link
+
+- name: Create nginx server config
+  template:
+    src: etc_nginx_sites-available_ttrss.j2
+    dest: /etc/nginx/sites-available/ttrss
+  notify: restart nginx
+
+- name: Enable nginx server
+  file:
+    dest: /etc/nginx/sites-enabled/ttrss
+    src: /etc/nginx/sites-available/ttrss
+    state: link
+  notify: restart nginx
+
+- name: Register domain
+  include: roles/letsencrypt/tasks/domain.yml
+  vars:
+    domain: "{{ ttrss_domain }}"
+
+- name: Create ttrss group
+  group:
+    name: "{{ ttrss_database_user }}"
+    system: yes
+
+- name: Create ttrss user
+  user:
+    name: "{{ ttrss_database_user }}"
+    home: /var/lib/ttrss
+    shell: /sbin/nologin
+    group: "{{ ttrss_database_user }}"
+    comment: ttrss user
+    system: yes
+
+- name: Create database user
+  postgresql_user:
+    name: "{{ ttrss_database_user }}"
+    password: "{{ ttrss_database_pass }}"
+  become_user: postgres
+  become_method: sudo
+
+- name: Create database
+  postgresql_db:
+    name: "{{ ttrss_database_name }}"
+    owner: "{{ ttrss_database_user }}"
+  become_user: postgres
+  become_method: sudo
+  register: ttrss_database_creation
+
+- name: Initialize database
+  command: psql -U {{ ttrss_database_user }} {{ ttrss_database_name }} -f /srv/.selfhost/tt-rss/schema/ttrss_schema_pgsql.sql
+  become_user: "{{ ttrss_database_user }}"
+  become_method: sudo
+  when: ttrss_database_creation.changed == True
+
+- name: Create configuration file
+  template:
+    src: etc_.selfhost_tt-rss_config.php.j2
+    dest: /srv/.selfhost/tt-rss/config.php
+
+- name: Set necessary write permissions
+  file:
+    dest: "/srv/.selfhost/tt-rss/{{ item }}"
+    state: directory
+    mode: 0777
+    owner: www-data
+    recurse: yes
+  with_items:
+    - cache/export
+    - cache/images
+    - cache/js
+    - cache/upload
+    - feed-icons
+    - lock
+
+- name: Create systemd service file
+  template:
+    src: lib_systemd_system_ttrss_backend.service.j2
+    dest: /lib/systemd/system/ttrss_backend.service
+
+- name: Enable systemd service
+  systemd:
+    name: ttrss_backend
+    daemon_reload: yes
+    enabled: yes
+    state: started

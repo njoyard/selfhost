@@ -1,0 +1,8 @@
+---
+
+nginx_default_message: "Sorry, there's nothing here (but hey, it works, so yay!) <3"
+
+
+#  - domain: xxx.example.com
+#    path: /path/to/webroot
+nginx_static_sites: []

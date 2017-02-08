@@ -1,0 +1,56 @@
+---
+
+- name: Configure postfix
+  lineinfile:
+    dest: /etc/postfix/main.cf
+    regexp: "^{{ item.param | regex_escape() }}\\s*="
+    line: "{{ item.param }} = {{ item.value }}"
+  with_items:
+    - { param: "home_mailbox", value: "Maildir/" }
+    - { param: "inet_interfaces", value: "all" }
+    - { param: "inet_protocols", value: "all" }
+    - { param: "mailbox_command", value: "/usr/lib/dovecot/deliver" }
+    - { param: "message_size_limit", value: "{{ mail_message_size_limit }}" }
+    - { param: "mydestination", value: "{{ mail_destinations }}" }
+    - { param: "myhostname", value: "{{ ansible_fqdn }}" }
+    - { param: "myorigin", value: "/etc/mailname" }
+    - { param: "recipient_delimiter", value: "-" }
+    - { param: "smtp_tls_note_starttls_offer", value: "yes" }
+    - { param: "smtp_tls_security_level", value: "may" }
+    - { param: "smtpd_helo_restrictions", value: "reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, reject_unknown_helo_hostname" }
+    - { param: "smtpd_recipient_restrictions", value: "" }
+    - { param: "smtpd_tls_auth_only", value: "no" }
+    - { param: "smtpd_tls_CAfile", value: "/srv/letsencrypt/domains/{{ mail_domain }}/chain.pem" }
+    - { param: "smtpd_tls_cert_file", value: "/srv/letsencrypt/domains/{{ mail_domain }}/cert.pem" }
+    - { param: "smtpd_tls_key_file", value: "/srv/letsencrypt/domains/{{ mail_domain }}/privkey.pem" }
+    - { param: "smtpd_tls_loglevel", value: "1" }
+    - { param: "smtpd_tls_received_header", value: "yes" }
+    - { param: "smtpd_tls_security_level", value: "may" }
+    - { param: "smtpd_tls_session_cache_timeout", value: "3600s" }
+    - { param: "tls_random_source", value: "dev:/dev/urandom" }
+  notify: restart postfix
+
+- name: Enable smtps for postfix
+  blockinfile:
+    dest: /etc/postfix/master.cf
+    insertafter: "^#smtps"
+    marker: "# {mark} smpts for postfix"
+    content: |
+      smtps     inet  n       -       -       -       -       smtpd
+        -o syslog_name=postfix/smtps
+        -o smtpd_tls_wrappermode=yes
+        -o smtpd_sasl_auth_enable=yes
+        -o smtpd_client_restrictions=permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination
+        -o milter_macro_daemon_name=ORIGINATING
+        -o content_filter=spamassassin
+  notify: restart postfix
+
+- name: Setup fail2ban postfix jail
+  ini_file:
+    dest: /etc/fail2ban/jail.conf
+    section: "postfix"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { option: enabled, value: "true" }
+  notify: restart fail2ban

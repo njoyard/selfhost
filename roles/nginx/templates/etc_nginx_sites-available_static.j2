@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ item.domain }};
+    include snippets/acme-challenge.conf;
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    include snippets/acme-challenge.conf;
+    include snippets/ssl.conf;
+
+    ssl_certificate /srv/letsencrypt/domains/{{ item.domain }}/fullchain.pem;
+    ssl_certificate_key /srv/letsencrypt/domains/{{ item.domain }}/privkey.pem;
+
+    root /srv/{{ item.domain }};
+
+    index index.html;
+    server_name {{ item.domain }};
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

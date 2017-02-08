@@ -1,0 +1,111 @@
+upstream nextcloud-php-handler {
+    server unix:/var/run/php/php7.0-fpm.sock;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ nextcloud_domain }};
+
+    include snippets/acme-challenge.conf;
+
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name {{ nextcloud_domain }};
+
+    include snippets/ssl.conf;
+    include snippets/acme-challenge.conf;
+    ssl_certificate /srv/letsencrypt/domains/{{ nextcloud_domain }}/fullchain.pem;
+    ssl_certificate_key /srv/letsencrypt/domains/{{ nextcloud_domain }}/privkey.pem;
+
+    access_log /var/log/nginx/nextcloud_access.log;
+    error_log /var/log/nginx/nextcloud_error.log info;
+
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Robots-Tag none;
+    add_header X-Download-Options noopen;
+    add_header X-Permitted-Cross-Domain-Policies none;
+
+    root /srv/{{ nextcloud_domain }}/;
+
+    location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+    }
+
+    location = /.well-known/carddav {
+        return 301 $scheme://$host/remote.php/dav;
+    }
+    location = /.well-known/caldav {
+        return 301 $scheme://$host/remote.php/dav;
+    }
+
+    client_max_body_size 512M;
+    fastcgi_buffers 64 4K;
+
+    gzip off;
+
+    error_page 403 /core/templates/403.php;
+    error_page 404 /core/templates/404.php;
+
+    location / {
+        rewrite ^ /index.php$uri;
+    }
+
+    location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)/ {
+        deny all;
+    }
+    location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console) {
+        deny all;
+    }
+
+    location ~ ^/(?:index|remote|public|cron|core/ajax/update|status|ocs/v[12]|updater/.+|ocs-provider/.+|core/templates/40[34])\.php(?:$|/) {
+        include fastcgi_params;
+
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param HTTPS on;
+
+        fastcgi_param modHeadersAvailable true;
+        fastcgi_param front_controller_active true;
+        fastcgi_pass nextcloud-php-handler;
+        fastcgi_intercept_errors on;
+    }
+
+    location ~ ^/(?:updater|ocs-provider)(?:$|/) {
+        try_files $uri/ =404;
+        index index.php;
+    }
+
+    location ~* \.(?:css|js|woff|svg|gif)$ {
+        try_files $uri /index.php$uri$is_args$args;
+        add_header Cache-Control "public, max-age=7200";
+
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
+        add_header X-Robots-Tag none;
+        add_header X-Download-Options noopen;
+        add_header X-Permitted-Cross-Domain-Policies none;
+
+        access_log off;
+    }
+
+    location ~* \.(?:png|html|ttf|ico|jpg|jpeg)$ {
+        try_files $uri /index.php$uri$is_args$args;
+
+        access_log off;
+    }
+}

@@ -1,0 +1,51 @@
+---
+
+- name: Create postfix SASL/smtpd config
+  copy:
+    src: etc_postfix_sasl_smtpd.conf
+    dest: /etc/postfix/sasl/smtpd.conf
+  notify: restart postfix
+
+- name: Check stat override for saslauthd chroot varrun
+  command: dpkg-statoverride --list /var/spool/postfix/var/run/saslauthd
+  register: statoverride_saslauthd
+  ignore_errors: yes
+
+- name: Add stat override for saslauthd chroot varrun
+  command: dpkg-statoverride --add root sasl 710 /var/spool/postfix/var/run/saslauthd
+  when: statoverride_saslauthd.rc == 1
+
+- name: Add postfix to sasl group
+  user:
+    name: postfix
+    append: yes
+    groups: sasl
+
+- name: Configure saslauthd
+  copy:
+    src: etc_default_saslauthd-postfix
+    dest: /etc/default/saslauthd-postfix
+  notify: restart saslauthd
+
+- name: Configure postfix SASL
+  lineinfile:
+    dest: /etc/postfix/main.cf
+    regexp: "^{{ item.param | regex_escape() }}\\s*="
+    line: "{{ item.param }} = {{ item.value }}"
+  with_items:
+    - { param: "broken_sasl_auth_clients", value: "yes" }
+    - { param: "smtpd_sasl_auth_enable", value: "yes" }
+    - { param: "smtpd_sasl_local_domain", value: "$myhostname" }
+    - { param: "smtpd_sasl_security_options", value: "noanonymous" }
+    - { param: "smtpd_recipient_restrictions", value: "permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination, reject_invalid_hostname, reject_unknown_recipient_domain, reject_unauth_destination, reject_rbl_client sbl.spamhaus.org" }
+  notify: restart postfix
+
+- name: Setup fail2ban sasl jail
+  ini_file:
+    dest: /etc/fail2ban/jail.conf
+    section: "sasl"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { option: enabled, value: "true" }
+  notify: restart fail2ban

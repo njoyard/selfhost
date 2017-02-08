@@ -1,0 +1,24 @@
+---
+
+- name: Create static site root links
+  file:
+    dest: /srv/{{ item.domain }}
+    src: "{{ item.path }}"
+    state: link
+
+- name: Create static site nginx config files
+  template:
+    src: etc_nginx_sites-available_static.j2
+    dest: /etc/nginx/sites-available/static-{{ item.domain }}
+
+- name: Enable static sites
+  file:
+    dest: /etc/nginx/sites-enabled/static-{{ item.domain }}
+    src: /etc/nginx/sites-available/static-{{ item.domain }}
+    state: link
+  notify: restart nginx
+
+- name: Register domain
+  include: roles/letsencrypt/tasks/domain.yml
+  vars:
+    domain: "{{ item.domain }}"

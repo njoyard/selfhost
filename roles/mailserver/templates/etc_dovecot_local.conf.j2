@@ -1,0 +1,24 @@
+protocols = imap sieve
+
+service imap-login {
+  inet_listener imap {
+    port = 0
+  }
+  inet_listener imaps {
+    address = *
+    port = 993
+  }
+}
+
+protocol lda {
+  mail_plugins = sieve
+}
+
+mail_location = maildir:/home/%u/Maildir
+mail_max_userip_connections = 50
+
+ssl = yes
+ssl_cert = </srv/letsencrypt/domains/{{ mail_domain }}/fullchain.pem
+ssl_key = </srv/letsencrypt/domains/{{ mail_domain }}/privkey.pem
+
+recipient_delimiter = -

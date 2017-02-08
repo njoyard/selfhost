@@ -1,0 +1,56 @@
+upstream ttrss-php-handler {
+    server unix:/var/run/php/php7.0-fpm.sock;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ ttrss_domain }};
+
+    include snippets/acme-challenge.conf;
+
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name {{ ttrss_domain }};
+
+    include snippets/ssl.conf;
+    include snippets/acme-challenge.conf;
+    ssl_certificate /srv/letsencrypt/domains/{{ ttrss_domain }}/fullchain.pem;
+    ssl_certificate_key /srv/letsencrypt/domains/{{ ttrss_domain }}/privkey.pem;
+
+    root /srv/{{ ttrss_domain }}/;
+    index index.html index.htm index.php;
+
+    access_log /var/log/nginx/ttrss_access.log;
+    error_log /var/log/nginx/ttrss_error.log info;
+
+    server_name name.here;
+
+    location / {
+        index index.php;
+    }
+
+    location /cache {
+        deny all;
+    }
+
+    location = /config.php {
+        deny all;
+    }
+
+    location ~ \.php$ {
+        try_files $uri = 404;
+
+        include fastcgi_params;
+        fastcgi_pass ttrss-php-handler;
+        fastcgi_index index.php;
+    }
+}

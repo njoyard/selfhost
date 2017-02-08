@@ -1,0 +1,7 @@
+---
+
+znc_port: 2000
+
+# list of { name, pass, nick }
+# generate pass with znc --makepass
+znc_users: []

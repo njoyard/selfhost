@@ -1,0 +1,11 @@
+---
+
+nextcloud_archive_url: https://download.nextcloud.com/server/releases/nextcloud-11.0.1.zip
+nextcloud_archive_sha256: 6194832867811c8a90e77e59338161859776a6b1937c9b7ed67b64bec66df4b3
+
+nextcloud_database_name: nextcloud
+nextcloud_database_user: nextcloud
+nextcloud_database_pass: nextcloud
+
+nextcloud_admin_user: admin
+nextcloud_admin_pass: password

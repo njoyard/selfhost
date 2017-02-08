@@ -1,0 +1,9 @@
+---
+
+- name: Install postgresql packages
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - postgresql
+    - python-psycopg2

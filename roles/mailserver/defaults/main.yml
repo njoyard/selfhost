@@ -1,0 +1,5 @@
+---
+
+mail_message_size_limit: 10240000
+mail_users: []
+mail_aliases: []

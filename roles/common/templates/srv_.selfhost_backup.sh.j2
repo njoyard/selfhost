@@ -1,0 +1,19 @@
+#!/bin/bash
+
+TARGET={{ backup_target }}
+LISTFILE=/srv/.selfhost/backup.list
+
+if [ ! -f $LISTFILE ]; then
+    echo "No backup list, stopping"
+    exit 1
+fi
+
+cat $LISTFILE | while read line; do
+    TOKENS=($line)
+    NAME=${TOKENS[0]}
+    DIR=${TOKENS[1]%/}
+
+    echo "$(date) Backing up $DIR on $TARGET ($NAME)"
+
+    duplicity --ssh-options="-oIdentityFile=/srv/.selfhost/backup_id_rsa" --no-encryption $DIR scp://backup@$TARGET/$NAME
+done

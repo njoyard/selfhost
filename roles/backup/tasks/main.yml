@@ -1,0 +1,16 @@
+---
+
+- name: Create backup user
+  user:
+    name: backup
+    append: yes
+    groups: ssh
+    home: "{{ backup_root }}"
+    system: yes
+    skeleton: no
+
+- name: Setup rights on backup home dir
+  file:
+    dest: "{{ backup_root }}"
+    owner: backup
+    recurse: yes

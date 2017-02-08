@@ -1,0 +1,58 @@
+---
+
+- name: Install ZNC
+  apt:
+    pkg: znc
+    state: present
+
+- name: Create ZNC group
+  group:
+    name: znc
+    system: yes
+  notify: restart znc
+
+- name: Create ZNC user
+  user:
+    name: znc
+    home: /var/lib/znc
+    shell: /sbin/nologin
+    group: znc
+    comment: ZNC daemon user
+    system: yes
+  notify: restart znc
+
+- name: Create configuration dir
+  file:
+    dest: /var/lib/znc/configs
+    owner: znc
+    group: znc
+    mode: 0700
+    state: directory
+  notify: restart znc
+
+- name: Create configuration
+  template:
+    src: var_lib_znc_configs_znc.conf.j2
+    dest: /var/lib/znc/configs/znc.conf
+    owner: znc
+    group: znc
+    mode: 0600
+  notify: restart znc
+
+- name: Create .znc link
+  file:
+    src: /var/lib/znc
+    dest: /var/lib/znc/.znc
+    state: link
+
+- name: Register domain
+  include: roles/letsencrypt/tasks/domain.yml
+  vars:
+    domain: "{{ znc_domain }}"
+
+- name: Create ZNC autostart cron task
+  cron:
+    name: Auto-restart ZNC
+    minute: "*/10"
+    user: znc
+    job: /usr/bin/znc --datadir=/var/lib/znc >/dev/null 2>&1

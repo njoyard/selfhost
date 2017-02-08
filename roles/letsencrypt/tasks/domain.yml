@@ -1,0 +1,9 @@
+---
+
+# expects "domain" variable
+
+- name: Add domain to letsencrypt list
+  lineinfile:
+    dest: /srv/letsencrypt/domains.list
+    line: "{{ domain }}"
+  notify: update letsencrypt

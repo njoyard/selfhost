@@ -1,0 +1,33 @@
+---
+
+- name: Add Mati75 repository key
+  apt_key:
+    keyserver: pgpkeys.mit.edu
+    id: CCD91D6111A06851
+
+- name: Add Mati75 repository
+  apt_repository:
+    repo: deb http://repozytorium.mati75.eu/raspbian jessie-backports main contrib non-free
+    state: present
+    update_cache: yes
+
+- name: Install PHP7
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - php7.0
+    - php7.0-fpm
+    - php7.0-opcache
+
+- name: Setup nginx fastcgi params
+  copy:
+    src: etc_nginx_fastcgi_params
+    dest: /etc/nginx/fastcgi_params
+  notify: restart nginx
+
+- name: Add PHP nginx snippet
+  copy:
+    src: etc_nginx_snippets_php.conf
+    dest: /etc/nginx/snippets/php.conf
+  notify: restart nginx

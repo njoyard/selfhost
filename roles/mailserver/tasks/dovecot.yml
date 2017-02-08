@@ -1,0 +1,17 @@
+---
+
+- name: Configure dovecot
+  template:
+    src: etc_dovecot_local.conf.j2
+    dest: /etc/dovecot/local.conf
+  notify: restart dovecot
+
+- name: Setup fail2ban dovecot jail
+  ini_file:
+    dest: /etc/fail2ban/jail.conf
+    section: "dovecot"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { option: enabled, value: "true" }
+  notify: restart fail2ban

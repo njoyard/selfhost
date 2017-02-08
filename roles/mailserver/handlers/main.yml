@@ -1,0 +1,29 @@
+---
+
+- name: restart dovecot
+  service:
+    name: dovecot
+    state: restarted
+
+- name: restart opendkim
+  service:
+    name: opendkim
+    state: restarted
+
+- name: restart postfix
+  service:
+    name: postfix
+    state: restarted
+
+- name: restart saslauthd
+  service:
+    name: saslauthd
+    state: restarted
+
+- name: restart spamassassin
+  service:
+    name: spamassassin
+    state: restarted
+
+- name: update aliases
+  command: newaliases

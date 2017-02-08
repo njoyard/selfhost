@@ -1,0 +1,45 @@
+---
+
+- name: Install backup utility
+  apt:
+    pkg: duplicity
+    state: present
+
+- name: Create backup keypair
+  command: ssh-keygen -b 2048 -t rsa -f /srv/.selfhost/backup_id_rsa -q -N ""
+  args:
+    creates: /srv/.selfhost/backup_id_rsa
+
+- name: Read backup public key
+  command: cat /srv/.selfhost/backup_id_rsa.pub
+  register: backup_public_key
+  changed_when: no
+
+- name: Authorize backup key on backup target
+  authorized_key:
+    user: backup
+    key: '{{ backup_public_key.stdout }}'
+  delegate_to: '{{ backup_target }}'
+
+- name: Read backup target host key
+  command: ssh-keyscan -t rsa {{ backup_target }}
+  register: backup_host_key
+  changed_when: no
+
+- name: Add backup target to known hosts
+  known_hosts:
+    name: "{{ backup_target }}"
+    key: "{{ backup_host_key.stdout }}"
+
+- name: Create backup script
+  template:
+    src: srv_.selfhost_backup.sh.j2
+    dest: /srv/.selfhost/backup.sh
+    mode: 755
+
+- name: Create backup cron job
+  cron:
+    name: Backup job
+    minute: 0
+    hour: 5
+    job: /srv/.selfhost/backup.sh

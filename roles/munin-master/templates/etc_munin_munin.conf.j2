@@ -1,0 +1,18 @@
+dbdir     /var/lib/munin
+htmldir   /var/cache/munin/www
+logdir    /var/log/munin
+rundir    /var/run/munin
+
+includedir /etc/munin/munin-conf.d
+
+{% for host in groups['all'] %}
+[{{ hostvars[host]['ansible_fqdn'] }}]
+    address {{ hostvars[host]['ansible_eth0']['ipv4']['address'] }}
+
+{% endfor %}
+
+{% for node in munin_additional_nodes %}
+[{{ node['name'] }}]
+    address {{ node['addr'] }}
+
+{% endfor %}

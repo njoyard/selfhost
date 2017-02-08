@@ -1,0 +1,52 @@
+---
+
+- name: Download Lukas2511's letsencrypt script
+  get_url:
+    url: "{{ letsencryptsh_url }}"
+    dest: /srv/.selfhost/letsencrypt.sh
+    mode: ug+x
+
+- name: Create directories
+  file:
+    dest: "{{ item }}"
+    state: directory
+  with_items:
+    - /srv/letsencrypt
+    - /srv/letsencrypt/accounts
+    - /srv/letsencrypt/aggregates
+    - /srv/letsencrypt/certs
+    - /srv/letsencrypt/domains
+    - /srv/letsencrypt/.well-known
+    - /srv/letsencrypt/.well-known/acme-challenge
+
+- name: Create config file
+  template:
+    src: srv_letsencrypt_config.j2
+    dest: /srv/letsencrypt/config
+
+- name: Create renewal script domain list helper
+  copy:
+    src: srv_letsencrypt_aggregate_domains.py
+    dest: /srv/letsencrypt/aggregate_domains.py
+
+- name: Create renewal script
+  copy:
+    src: srv_letsencrypt_renew.sh
+    dest: /srv/letsencrypt/renew.sh
+    mode: "ug+x"
+
+- name: Add additional domains to domain list
+  lineinfile:
+    dest: /srv/letsencrypt/domains.list
+    line: "{{ item }}"
+    create: yes
+  notify: update letsencrypt
+  with_items: "{{ letsencrypt_additional_domains }}"
+
+- name: Create renewal cron task
+  cron:
+    name: Renew letsencrypt certificates
+    minute: 0
+    hour: 3
+    weekday: 2
+    job: /srv/letsencrypt/renew.sh

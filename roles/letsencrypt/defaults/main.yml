@@ -1,0 +1,4 @@
+---
+
+letsencryptsh_url: https://raw.githubusercontent.com/lukas2511/dehydrated/master/dehydrated
+letsencrypt_additional_domains: []

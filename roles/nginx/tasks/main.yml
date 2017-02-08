@@ -1,0 +1,53 @@
+---
+
+- name: Install nginx
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - nginx
+
+- name: Create /srv/default directory
+  file:
+    path: /srv/default
+    state: directory
+    owner: www-data
+
+- name: Create default index
+  template:
+    src: srv_default_index.html.j2
+    dest: /srv/default/index.html
+
+- name: Create acme challenge config snippet
+  copy:
+    src: etc_nginx_snippets_acme-challenge.conf
+    dest: /etc/nginx/snippets/acme-challenge.conf
+  notify: restart nginx
+
+- name: Create SSL config snippet
+  copy:
+    src: etc_nginx_snippets_ssl.conf
+    dest: /etc/nginx/snippets/ssl.conf
+  notify: restart nginx
+
+- name: Create default server config
+  template:
+    src: etc_nginx_sites-available_default.j2
+    dest: /etc/nginx/sites-available/default
+  notify: restart nginx
+
+- name: Enable default server
+  file:
+    dest: /etc/nginx/sites-enabled/default
+    src: /etc/nginx/sites-available/default
+    state: link
+  notify: restart nginx
+
+- include: tasks/staticsites.yml
+  with_items: "{{ nginx_static_sites }}"
+
+- name: Register default domains
+  include: roles/letsencrypt/tasks/domain.yml
+  vars:
+    domain: "{{ item }}"
+  with_items: "{{ nginx_default_domains }}"

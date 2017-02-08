@@ -1,0 +1,15 @@
+---
+
+- name: Install CUPS and drivers
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - cups
+    - printer-driver-all
+
+- name: Configure CUPS
+  template:
+    src: etc_cups_cupsd.conf.j2
+    dest: /etc/cups/cupsd.conf
+  notify: restart cups

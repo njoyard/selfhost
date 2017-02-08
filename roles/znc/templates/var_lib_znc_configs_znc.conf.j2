@@ -1,0 +1,29 @@
+Version = 1.4
+
+SSLCertFile = /srv/letsencrypt/aggregates/{{ znc_domain }}.pem
+
+<Listener l>
+	Port = {{ znc_port }}
+	IPv4 = true
+	IPv6 = true
+	SSL = true
+</Listener>
+
+LoadModule = webadmin
+
+{% for user in znc_users %}
+<User {{ user.name }}>
+	Admin      = true
+	Pass       = {{ user.pass }}
+	Nick       = {{ user.nick }}
+	AltNick    = {{ user.nick }}_
+	Ident      = {{ user.nick }}
+	RealName   = {{ user.nick }}
+	Buffer     = 1000
+	AutoClearChanBuffer = true
+	ChanModes  = +stn
+
+	LoadModule = chansaver
+	LoadModule = webadmin
+</User>
+{% endfor %}

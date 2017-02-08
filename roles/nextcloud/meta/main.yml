@@ -1,0 +1,7 @@
+---
+
+dependencies:
+  - { role: letsencrypt }
+  - { role: nginx }
+  - { role: php7 }
+  - { role: postgresql }

@@ -1,0 +1,54 @@
+---
+
+- name: Set OpenDKIM configuration
+  lineinfile:
+    dest: /etc/opendkim.conf
+    regexp: "^#?\\s*{{ item.param | regex_escape() }}\\s"
+    line: "{{ item.param }} {{ item.value }}"
+  with_items:
+    - { param: Domain, value: "{{ mail_name }}" }
+    - { param: KeyFile, value: /etc/dkimkeys/mail.private }
+    - { param: Selector, value: mail }
+    - { param: Canonicalization, value: relaxed/relaxed }
+  notify: restart opendkim
+
+- name: Set OpenDKIM socket
+  lineinfile:
+    dest: /etc/default/opendkim
+    regexp: "^SOCKET="
+    line: "SOCKET=inet:8891@localhost"
+  notify: restart opendkim
+
+- name: Set postfix milter options
+  blockinfile:
+    dest: /etc/postfix/main.cf
+    content: |
+      # DKIM
+      milter_default_action = accept
+      milter_protocol = 2
+      smtpd_milters = inet:localhost:8891
+      non_smtpd_milters = inet:localhost:8891
+  notify: restart postfix
+
+- name: Ensure DKIM key directory exists
+  file:
+    dest: /etc/dkimkeys
+    state: directory
+
+- name: Generate OpenDKIM key
+  command: "opendkim-genkey -t -s mail -d {{ mail_name }}"
+  args:
+    chdir: /etc/dkimkeys
+    creates: /etc/dkimkeys/mail.private
+  notify:
+    - restart opendkim
+    - restart postfix
+
+- name: Update OpenDKIM key permissions
+  file:
+    dest: /etc/dkimkeys/mail.private
+    owner: opendkim
+    group: opendkim
+  notify:
+    - restart opendkim
+    - restart postfix

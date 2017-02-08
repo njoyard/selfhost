@@ -1,0 +1,86 @@
+---
+
+- name: Install required PHP7 extensions
+  apt:
+    pkg: "php7.0-{{ item }}"
+    state: present
+  with_items:
+    - bz2
+    - curl
+    - gd
+    - intl
+    - json
+    - mbstring
+    - mcrypt
+    - pgsql
+    - xml
+    - zip
+
+- name: Create database user
+  postgresql_user:
+    name: "{{ nextcloud_database_user }}"
+    password: "{{ nextcloud_database_pass }}"
+  become_user: postgres
+  become_method: sudo
+
+- name: Create database
+  postgresql_db:
+    name: "{{ nextcloud_database_name }}"
+    owner: "{{ nextcloud_database_user }}"
+  become_user: postgres
+  become_method: sudo
+
+- name: Check for NextCloud installation
+  stat:
+    path: /srv/.selfhost/nextcloud_installed
+  register: nextcloud_installed_file
+
+- include: tasks/install.yml
+  when: nextcloud_installed_file.stat.exists == False
+
+- name: Create data directories
+  file:
+    dest: "/srv/.selfhost/nextcloud/{{ item }}"
+    state: directory
+  with_items:
+    - data
+    - updater
+
+- name: Remove .htaccess files
+  file:
+    dest: "/srv/.selfhost/nextcloud/{{ item }}"
+    state: absent
+  with_items:
+    - .htaccess
+    - data/.htaccess
+
+- name: Setup trusted domains
+  blockinfile:
+    dest: /srv/.selfhost/nextcloud/config/config.php
+    insertafter: "0 => 'localhost',"
+    content: |
+      1 => '{{ nextcloud_domain }}',
+
+- name: Create nginx server config
+  template:
+    src: etc_nginx_sites-available_nextcloud.j2
+    dest: /etc/nginx/sites-available/nextcloud
+  notify: restart nginx
+
+- name: Enable nginx server
+  file:
+    dest: /etc/nginx/sites-enabled/nextcloud
+    src: /etc/nginx/sites-available/nextcloud
+    state: link
+  notify: restart nginx
+
+- name: Register domain
+  include: roles/letsencrypt/tasks/domain.yml
+  vars:
+    domain: "{{ nextcloud_domain }}"
+
+- name: Add backup entry for NextCloud data
+  include: roles/backup/tasks/register_path.yml
+  vars:
+    name: nextcloud-data
+    path: /srv/.selfhost/nextcloud/data

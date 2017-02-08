@@ -1,0 +1,50 @@
+---
+
+- name: Install common packages
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - apt-transport-https
+    - cpanminus
+    - curl
+    - fail2ban
+    - htop
+    - ntp
+    - openssl
+    - python-pexpect
+    - unzip
+    - vim
+
+- name: Install additional packages
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items: "{{ common_additional_packages }}"
+
+- name: Create /srv/.selfhost directory
+  file:
+    path: /srv/.selfhost
+    state: directory
+
+- name: Create strong DH group (may take a long time!)
+  command: openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+  args:
+    creates: /etc/ssl/certs/dhparam.pem
+
+- name: Create autoupdate cron tasks
+  cron:
+    name: Autoupdate {{ item.name }}
+    minute: "{{ item.minute }}"
+    hour: 3
+    weekday: 1
+    job: "{{ item.job }}"
+  with_items:
+    - { name: 'Update', minute: 0, job: 'apt update' }
+    - { name: 'Upgrade', minute: 5, job: 'apt -y upgrade' }
+    - { name: 'Autoremove', minute: 55, job: 'apt-get -y autoremove' }
+  when: common_enable_autoupdate
+
+- name: Setup backup
+  include: backup.yml
+  when: backup_target is defined

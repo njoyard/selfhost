@@ -1,0 +1,40 @@
+# Default server configuration
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    include snippets/acme-challenge.conf;
+
+    location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        deny all;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+
+    include snippets/acme-challenge.conf;
+    include snippets/ssl.conf;
+
+    ssl_certificate /srv/letsencrypt/domains/{{ nginx_default_cert_domain }}/fullchain.pem;
+    ssl_certificate_key /srv/letsencrypt/domains/{{ nginx_default_cert_domain }}/privkey.pem;
+
+    root /srv/default;
+
+    index index.html;
+    server_name _;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
